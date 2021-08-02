@@ -32,6 +32,9 @@ private:
     Antilatency::StorageClient::ILibrary _storageClientLibrary;
 
     Antilatency::DeviceNetwork::INetwork _network;
+
+    // Each time the device network is changed due to connection or disconnection of a device that matches the device filter of the network,
+    // or start or stop of a task on any network device, the network update id is incremented by 1.
     uint32_t _prevUpdateId = 0;
 
     Antilatency::Alt::Environment::IEnvironment _altEnvironment;

@@ -25,21 +25,25 @@ Java_com_antilatency_alttrackingdemo_MainActivity_GetOutput(JNIEnv* env, jobject
 }
 
 AltTrackingSample::AltTrackingSample(JNIEnv *env, jobject instance) {
+    // Load the Antilatency Device Network library
     _deviceNetworkLibrary = Antilatency::InterfaceContract::getLibraryInterface<Antilatency::DeviceNetwork::ILibrary>("libAntilatencyDeviceNetwork.so");
     if (_deviceNetworkLibrary == nullptr){
         throw std::runtime_error("Failed to load Device Network library");
     }
 
+    // Load the Antilatency Alt Tracking library
     _altTrackingLibrary = Antilatency::InterfaceContract::getLibraryInterface<Antilatency::Alt::Tracking::ILibrary>("libAntilatencyAltTracking.so");
     if (_altTrackingLibrary == nullptr){
         throw std::runtime_error("Failed to load Alt Tracking library");
     }
 
+    // Load the Antilatency Alt Environment Selector library
     _altEnvironmentSelectorLibrary = Antilatency::InterfaceContract::getLibraryInterface<Antilatency::Alt::Environment::Selector::ILibrary>("libAntilatencyAltEnvironmentSelector.so");
     if (_altEnvironmentSelectorLibrary == nullptr){
         throw std::runtime_error("Failed to load Alt Environment Selector library");
     }
 
+    // Load the Antilatency Storage Client library
     _storageClientLibrary = Antilatency::InterfaceContract::getLibraryInterface<Antilatency::StorageClient::ILibrary>("libAntilatencyStorageClient.so");
     if (_altEnvironmentSelectorLibrary == nullptr){
         throw std::runtime_error("Failed to load Alt Storage Client library");
@@ -55,18 +59,23 @@ AltTrackingSample::AltTrackingSample(JNIEnv *env, jobject instance) {
 
     writeOutput("Antilatency Device Network library ver. " + _deviceNetworkLibrary.getVersion());
 
+    // Create a device network filter and then create a network using that filter.
     Antilatency::DeviceNetwork::IDeviceFilter deviceFilter = _deviceNetworkLibrary.createFilter();
     deviceFilter.addUsbDevice(Antilatency::DeviceNetwork::Constants::AllUsbDevices);
     deviceFilter.addIpDevice(Antilatency::DeviceNetwork::Constants::AllIpDevicesIp, Antilatency::DeviceNetwork::Constants::AllIpDevicesMask);
     _network = _deviceNetworkLibrary.createNetwork(deviceFilter);
 
+    // Get environment serialized data from Antilatency Service. Using "default" as key will return environment that marked as default in Antilatency Service.
     std::string environmentCode = _storageClientLibrary.getLocalStorage().read("environment", "default");
+    // Get environment name from Antilatency Service
     std::string environmentName = _storageClientLibrary.getLocalStorage().read("environment", ".default");
+    // Create environment object from the serialized data.
     _altEnvironment = _altEnvironmentSelectorLibrary.createEnvironment(environmentCode);
     if (_altEnvironment == nullptr){
         throw std::runtime_error("Failed to create environment");
     }
 
+    // Get markers positions from the environment
     std::vector<Antilatency::Math::float3> markersPositions = _altEnvironment.getMarkers();
     writeOutput("Environment" + environmentName + " has been created, markers count: " + std::to_string(markersPositions.size()));
 
@@ -74,7 +83,9 @@ AltTrackingSample::AltTrackingSample(JNIEnv *env, jobject instance) {
         writeOutput("Marker: { " + std::to_string(marker.x) + ", " + std::to_string(marker.y) + ", " + std::to_string(marker.z) + "}");
     }
 
+    // Get placement serialized data from Antilatency Service. Using "default" as key will return placement that marked as default in Antilatency Service.
     std::string placementCode = _storageClientLibrary.getLocalStorage().read("placement", "default");
+    // Create placement from the serialized data.
     _placement = _altTrackingLibrary.createPlacement(placementCode);
 
     writeOutput("Placement offset: (" + std::to_string(_placement.position.x) + ", " + std::to_string(_placement.position.y) + ", " + std::to_string(_placement.position.z) + ")");
@@ -117,15 +128,18 @@ void AltTrackingSample::doTracking() {
         }
 
         if (_altTrackingCotask == nullptr){
+            // Check if the network has been changed.
             uint32_t currentUpdateId = _network.getUpdateId();
             if (_prevUpdateId != currentUpdateId){
                 _prevUpdateId = currentUpdateId;
                 writeOutput("Antilatency Device Network update id has been incremented: " + std::to_string(currentUpdateId));
                 writeOutput("Searching for idle nodes that supports tracking task...");
 
+                // Create alt tracking cotask constructor to find tracking-supported nodes and start tracking task on node.
                 Antilatency::Alt::Tracking::ITrackingCotaskConstructor cotaskConstructor = _altTrackingLibrary.createTrackingCotaskConstructor();
                 std::vector<Antilatency::DeviceNetwork::NodeHandle> availableTrackingNodes = cotaskConstructor.findSupportedNodes(_network);
 
+                // Get first idle node that supports tracking task.
                 for (auto node : availableTrackingNodes){
                     std::stringstream ss;
                     ss << static_cast<std::underlying_type<Antilatency::DeviceNetwork::NodeHandle>::type>(node);
