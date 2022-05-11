@@ -45,7 +45,7 @@ AltTrackingSample::AltTrackingSample(JNIEnv *env, jobject instance) {
 
     // Load the Antilatency Storage Client library
     _storageClientLibrary = Antilatency::InterfaceContract::getLibraryInterface<Antilatency::StorageClient::ILibrary>("libAntilatencyStorageClient.so");
-    if (_altEnvironmentSelectorLibrary == nullptr){
+    if (_storageClientLibrary == nullptr){
         throw std::runtime_error("Failed to load Alt Storage Client library");
     }
 
